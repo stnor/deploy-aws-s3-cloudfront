@@ -4,7 +4,7 @@ const md5File = require('md5-file');
 const micromatch = require('micromatch');
 const mimeTypes = require('mime-types');
 
-const {ListObjectsCommand} = require('@aws-sdk/client-s3');
+const {ListObjectsV2Command} = require('@aws-sdk/client-s3');
 
 const localNames = (logger, options) => {
 
@@ -26,7 +26,7 @@ const remoteNamesAndChecksums = (logger, s3, options) => {
     const keyToRelativePath = (key) => prefix ? key.replace(new RegExp(`^${prefix}`), '') : key;
 
     const fetch = (params = {}, objects = {}) => (
-        s3.send(new ListObjectsCommand({
+        s3.send(new ListObjectsV2Command({
             ...params,
             Bucket: options.bucket,
             Prefix: prefix,
@@ -39,6 +39,7 @@ const remoteNamesAndChecksums = (logger, s3, options) => {
                 }
 
                 if (response.IsTruncated) {
+                    console.log('Truncated', response.IsTruncated, response.NextContinuationToken, response.NextMarker);
                     return fetch({ContinuationToken: response.NextContinuationToken}, objects);
                 }
 
