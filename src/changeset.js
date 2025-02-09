@@ -39,7 +39,6 @@ const remoteNamesAndChecksums = (logger, s3, options) => {
                 }
 
                 if (response.IsTruncated) {
-                    console.log('Truncated', response.IsTruncated, response.NextContinuationToken, response.NextMarker);
                     return fetch({ContinuationToken: response.NextContinuationToken}, objects);
                 }
 
