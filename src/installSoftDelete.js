@@ -1,3 +1,4 @@
+const {GetBucketLifecycleConfigurationCommand} = require("@aws-sdk/client-s3");
 const createLifecycle = (logger, s3, options, previous = {}) => {
 
   logger.debug(`Creating lifecycle ${options.id}...`, {
@@ -37,20 +38,19 @@ const createLifecycle = (logger, s3, options, previous = {}) => {
 };
 
 module.exports = (logger, s3, options) => (
-  s3.getBucketLifecycleConfiguration({ Bucket: options.bucket })
-    .promise()
-    .then((config) => {
-      if (config.Rules.find((rule) => options.id === rule.ID)) {
-        logger.info(`Soft-delete lifecycle rule already exists on s3://${options.bucket} named "${options.id}"`);
-        return options.id;
-      }
-      return createLifecycle(logger, s3, options, config);
-    })
-    .catch((err) => {
-      if (!err || 'NoSuchLifecycleConfiguration' !== err.code) {
-        return Promise.reject(err);
-      }
-      return createLifecycle(logger, s3, options);
-    })
+  s3.send(new GetBucketLifecycleConfigurationCommand({ Bucket: options.bucket }))
+      .then((config) => {
+        if (config.Rules.find((rule) => options.id === rule.ID)) {
+          logger.info(`Soft-delete lifecycle rule already exists on s3://${options.bucket} named "${options.id}"`);
+          return options.id;
+        }
+        return createLifecycle(logger, s3, options, config);
+      })
+      .catch((err) => {
+        if (!err || 'NoSuchLifecycleConfiguration' !== err.code) {
+          return Promise.reject(err);
+        }
+        return createLifecycle(logger, s3, options);
+      })
 );
 

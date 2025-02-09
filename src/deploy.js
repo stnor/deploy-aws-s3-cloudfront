@@ -1,5 +1,7 @@
 const fs = require('fs');
 const qs = require('querystring');
+const {DeleteObjectsCommand, PutObjectTaggingCommand} = require('@aws-sdk/client-s3');
+const {Upload} = require("@aws-sdk/lib-storage");
 
 const DELETE_LIMIT = 1000; // https://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/S3.html#deleteObjects-property
 
@@ -7,16 +9,19 @@ const upload = (logger, s3, objects, options) => Promise.all(objects.map((object
 
   logger.debug(`Uploading ${object.path.relative}...`, { object });
 
-  return s3.upload({
-    ACL: object.acl,
-    Body: fs.createReadStream(object.path.local),
-    Bucket: options.bucket,
-    CacheControl: object.cacheControl,
-    ContentLength: object.contentLength,
-    ContentType: object.contentType,
-    Key: object.path.s3,
-    Tagging: qs.stringify(object.tagSet) || undefined,
-  }).promise();
+  return new Upload({
+    client: s3,
+    params: {
+      ACL: object.acl,
+      Body: fs.createReadStream(object.path.local),
+      Bucket: options.bucket,
+      CacheControl: object.cacheControl,
+      ContentLength: object.contentLength,
+      ContentType: object.contentType,
+      Key: object.path.s3,
+      Tagging: qs.stringify(object.tagSet) || undefined
+    }
+  }).done();
 
 }));
 
@@ -29,12 +34,12 @@ const hardDelete = (logger, s3, objects, options) => Promise.all(
 
       logger.debug(`Hard-deleting ${objects.length} objects...`, { objects });
 
-      return s3.deleteObjects({
+      return s3.send(new DeleteObjectsCommand({
         Bucket: options.bucket,
         Delete: {
           Objects: objects.map((object) => ({ Key: object.path.s3 })),
         },
-      }).promise();
+      }));
 
     })
 );
@@ -43,7 +48,7 @@ const removeSoftDelete = (logger, s3, objects, options) => Promise.all(objects.m
 
   logger.debug(`Removing soft-delete from ${objects.length} objects...`, { objects });
 
-  return s3.putObjectTagging({
+  return s3.send(new PutObjectTaggingCommand({
     Bucket: options.bucket,
     Key: object.path.s3,
     Tagging: {
@@ -51,7 +56,7 @@ const removeSoftDelete = (logger, s3, objects, options) => Promise.all(objects.m
         ...object.tagSet,
       }).map(([ key, value ]) => ({ Key: key, Value: value })),
     },
-  }).promise();
+  }));
 
 }));
 
@@ -59,7 +64,7 @@ const softDelete = (logger, s3, objects, options) => Promise.all(objects.map((ob
 
   logger.debug(`Soft-deleting ${objects.length} objects...`, { objects });
 
-  return s3.putObjectTagging({
+  return s3.send(new PutObjectTaggingCommand({
     Bucket: options.bucket,
     Key: object.path.s3,
     Tagging: {
@@ -68,7 +73,7 @@ const softDelete = (logger, s3, objects, options) => Promise.all(objects.map((ob
         [options.softDeleteTagKey]: options.softDeleteTagValue,
       }).map(([ key, value ]) => ({ Key: key, Value: value })),
     },
-  }).promise();
+  }));
 
 }));
 

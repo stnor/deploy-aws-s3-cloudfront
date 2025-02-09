@@ -1,3 +1,3 @@
-const AWS = require('aws-sdk');
+const {CloudFrontClient} = require('@aws-sdk/client-cloudfront');
 
-module.exports = () => new AWS.CloudFront();
+module.exports = () => new CloudFrontClient();

@@ -1,3 +1,4 @@
+const {CreateInvalidationCommand} = require('@aws-sdk/client-cloudfront');
 const INVALIDATION_LIMIT = 3000; // https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Invalidation.html#InvalidationLimits
 
 module.exports = (logger, cloudFront, paths, options) => Promise.all(
@@ -10,7 +11,7 @@ module.exports = (logger, cloudFront, paths, options) => Promise.all(
 
         logger.debug(`Invalidating ${paths.length} paths...`, { paths });
 
-        return cloudFront.createInvalidation({
+        return cloudFront.send(new CreateInvalidationCommand({
           DistributionId: options.distribution,
           InvalidationBatch: {
             CallerReference: `${+new Date()}`,
@@ -19,8 +20,7 @@ module.exports = (logger, cloudFront, paths, options) => Promise.all(
               Quantity: paths.length,
             },
           },
-        }).promise();
-
+        }));
       })
   )
 ).then(() => paths);
